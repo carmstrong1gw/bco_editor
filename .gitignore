@@ -5,3 +5,5 @@ env/
 .env
 frontend/build/
 django_react_proj/settings.py
+.idea
+bco_editor/api/migrations/*
