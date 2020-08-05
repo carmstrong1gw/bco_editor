@@ -10,7 +10,13 @@ class bco_object_ieee_2791_2020(models.Model):
 
 	# The payload, essentially the entirety of the BCO.
 	# TextField is used here because it has no character limit.
-	payload = models.TextField()
+
+	# Field is optional.
+	# Source:  https://stackoverflow.com/questions/16349545/optional-fields-in-django-models
+	payload = models.TextField(blank=True, null=True)
 
 	# The state of the object, is it a draft or is it commited?
-	state = models.TextField()
+
+	# Field is optional.
+	# Source:  https://stackoverflow.com/questions/16349545/optional-fields-in-django-models
+	state = models.TextField(blank=True, null=True)

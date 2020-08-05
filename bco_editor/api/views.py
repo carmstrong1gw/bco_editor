@@ -3,7 +3,7 @@
 # Create your views here.
 
 from .models import bco_object_ieee_2791_2020
-from .serializers import Bco27912020Serializer
+from .serializers import BcoPostSerializer, BcoGetSerializer, BcoPatchSerializer, BcoDeleteSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -20,7 +20,7 @@ import jsonref
 import jsonschema
 
 
-class Bco27912020APIView(APIView):
+class BcoAPIView(APIView):
 
 
     # Description
@@ -36,7 +36,7 @@ class Bco27912020APIView(APIView):
     # ...
 
     # Check for a valid object ID.
-    def check_object_id(self, object_id_pass):
+    def check_object_id_format(self, object_id_pass):
 
 
         # Arguments
@@ -82,14 +82,14 @@ class Bco27912020APIView(APIView):
 
             # Brand new object, so no need to check for format failure.
             format_failure = False
-        print(format_failure)
+
         # Return based on the validity.
         if format_failure is True:
             return 'OBJECT_ID_FORMAT_ERROR'
 
 
     # Check for a valid payload.
-    def check_payload_post(self, payload_pass):
+    def check_payload_format_post(self, payload_pass):
 
         print(payload_pass)
         # Arguments
@@ -142,9 +142,6 @@ class Bco27912020APIView(APIView):
     def check_payload_patch(self, payload_pass):
         print('te')
 
-    def check_payload_delete(self, payload_pass):
-        print('te')
-
     # Generate unique object IDs.
     def generate_object_id(self, existing_id=False, version_flag=False):
 
@@ -155,12 +152,15 @@ class Bco27912020APIView(APIView):
         #  existing_id:  an ID that is passed for version updating.
 
         # version_flag:  if true, we don't need a completely new
-        #                object ID, we just need a new version.
+        #                object ID, we just need potentially need a new version.
+        #                We say potentially need because if existing_id doesn't
+        #                exist in the database, then we'll just use existing_id
+        #                as the new ID.
 
 
         # First, get all BCOs.  These objects are returned as JSON, so
         # we can work with them more easily.
-        bco_objects = Bco27912020Serializer(bco_object_ieee_2791_2020.objects.all(), many=True).data
+        bco_objects = BcoPostSerializer(bco_object_ieee_2791_2020.objects.all(), many=True).data
 
         # Completely new object or just a new version?
         if version_flag is False:
@@ -213,7 +213,7 @@ class Bco27912020APIView(APIView):
 
         else:
 
-            # We just need a new version of the 'same' object.
+            # We may just need a new version of the 'same' object.
 
             # Get the current version number.
             # Note the type conversion from string to int.
@@ -254,14 +254,32 @@ class Bco27912020APIView(APIView):
         # Return our new ID.
         return created_id
 
+    # Retrieve an object from the database.
+    def retrieve_object(self, object_id_pass):
 
+        # Arguments
+        # ---------
+
+        #  object_id_pass:  the ID that we are checking for existence.
+
+        try:
+
+            return bco_object_ieee_2791_2020.objects.get(object_id=object_id_pass)
+
+        except bco_object_ieee_2791_2020.DoesNotExist:
+
+            return 'OBJECT_ID_DOES_NOT_EXIST'
+
+
+
+    # -------- CRUD Operations ------- #
 
 
     # For creating.
     def post(self, request):
 
         # Serialize the request.
-        serializer = Bco27912020Serializer(data=request.data)
+        serializer = BcoPostSerializer(data=request.data)
 
         # Did the request pass validation?
         if serializer.is_valid():
@@ -276,7 +294,7 @@ class Bco27912020APIView(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = self.check_object_id(object_id_pass=incoming_object_id)
+            object_id_format_check = self.check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
@@ -285,7 +303,7 @@ class Bco27912020APIView(APIView):
             # Make sure that the payload is of a valid format
             # and meets the requirements of the given schema.
             incoming_payload = request.data['payload']
-            payload_checks = self.check_payload_post(payload_pass=incoming_payload)
+            payload_checks = self.check_payload_format_post(payload_pass=incoming_payload)
 
             # Did we pass the tests?
             if payload_checks == 'JSON_CONVERSION_ERROR':
@@ -294,9 +312,6 @@ class Bco27912020APIView(APIView):
                 return Response('SCHEMA_MISMATCH_ERROR.  The payload provided did not meet the required fields for the'
                                 ' schema at ' + settings.SCHEMA_27912020_LOCATION + '.',
                                 status=status.HTTP_400_BAD_REQUEST)
-
-
-
 
             # The object ID and the payload are valid, so proceed to
             # generate a new ID and store the payload.
@@ -332,7 +347,7 @@ class Bco27912020APIView(APIView):
 
         # Get one object or many?  Use the payload to determine
         # how many we get (can use a list of object IDs to retrieve).
-        serializer = Bco27912020Serializer(bco_objects, many=True)
+        serializer = BcoPostSerializer(bco_objects, many=True)
 
         return Response(serializer.data)
 
@@ -349,10 +364,47 @@ class Bco27912020APIView(APIView):
     # For deleting.
     def delete(self, request):
 
-        article = self.get_object(id)
+        # Serialize the request.
+        serializer = BcoDeleteSerializer(data=request.data)
 
-        article.delete()
+        # Did the request pass validation?
+        if serializer.is_valid():
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            # The serialization is valid, so now we need to check
+            # that a valid object ID was sent.
+
+            # Get a new object ID based on whether or not the
+            # incoming data asks for a new ID or a new version.
+            incoming_object_id = request.data['object_id']
+
+            # Make sure that the object ID is of a valid format.
+            object_id_format_check = self.check_object_id_format(object_id_pass=incoming_object_id)
+
+            # Did we pass the format test?
+            if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
+                return Response(
+                    'OBJECT_ID_FORMAT_ERROR.  Make sure the object ID matches the URI standard for your installation.  In particular, if you are creating a new object, make sure that object_id=\'New\' has no spaces.',
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # The object ID is valid, so proceed to see if the object
+            # is in the database.
+            retrieved_object = self.retrieve_object(incoming_object_id)
+
+            # Does the object exist?
+            if retrieved_object == 'OBJECT_ID_DOES_NOT_EXIST':
+                return Response('OBJECT_ID_DOES_NOT_EXIST.  The provided ID \'' + incoming_object_id + '\' was not found in the database, so there was nothing to delete.', status=status.HTTP_404_NOT_FOUND)
+
+            # Delete the object.
+            retrieved_object.delete()
+
+            # Everything went properly in the request.
+            return Response(
+                'DELETEd object with object_id \'' + incoming_object_id + '\' successfuly deleted from the database.',
+                status=status.HTTP_204_NO_CONTENT)
+
+        else:
+
+            # Something went wrong in the request.
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
