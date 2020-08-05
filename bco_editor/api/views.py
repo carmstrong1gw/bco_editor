@@ -376,7 +376,7 @@ class BcoViewAll(APIView):
 
     # For reading.
     def get(self, request):
-        
+
         bco_objects = bco_object.objects.all()
 
         # Get one object or many?  Use the payload to determine
