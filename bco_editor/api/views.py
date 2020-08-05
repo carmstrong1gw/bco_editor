@@ -273,7 +273,7 @@ class helper_functions:
             return 'OBJECT_ID_DOES_NOT_EXIST'
 
 
-class BcoCreateObject(APIView):
+class BcoPostObject(APIView):
 
 
     # Description
@@ -351,30 +351,7 @@ class BcoCreateObject(APIView):
             # Something went wrong in the request.
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # For reading.
-    def get(self, request):
-
-        bco_objects = bco_object.objects.all()
-
-        # Get one object or many?  Use the payload to determine
-        # how many we get (can use a list of object IDs to retrieve).
-        serializer = BcoGetSerializer(bco_objects, many=True)
-
-        return Response(serializer.data)
-
-
-class BcoViewAll(APIView):
-
-
-    # Description
-    # -----------
-
-    # This view only allows reading.
-
-
-    # -------- CRUD Operations ------- #
-
-    # For reading.
+    # For reading (testing only).
     def get(self, request):
 
         bco_objects = bco_object.objects.all()
@@ -388,7 +365,10 @@ class BcoViewAll(APIView):
 
 
 
-class BcoViewObject(APIView):
+
+
+
+class BcoGetObject(APIView):
 
 
     # Description
@@ -420,11 +400,23 @@ class BcoViewObject(APIView):
 
         # Get one object or many?  Use the payload to determine
         # how many we get (can use a list of object IDs to retrieve).
-        serializer = BcoGetSerializer(bco_object, many=True)
+        serializer = BcoGetSerializer(bco_object)
 
         return Response(serializer.data)
 
 
+
+
+class BcoPatchObject(APIView):
+
+
+    # Description
+    # -----------
+
+    # This view only allows patching.
+
+
+    # -------- CRUD Operations ------- #
 
 
     # For patching (updating).
@@ -433,6 +425,15 @@ class BcoViewObject(APIView):
 
 
 
+
+class BcoDeleteObject(APIView):
+
+    # Description
+    # -----------
+
+    # This view only allows deleting.
+
+    # -------- CRUD Operations ------- #
 
     # For deleting.
     def delete(self, request):
@@ -479,3 +480,30 @@ class BcoViewObject(APIView):
 
             # Something went wrong in the request.
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# ------- SPECIAL VIEWS ------- #
+
+
+class BcoViewAll(APIView):
+
+
+    # Description
+    # -----------
+
+    # View all BCOs.
+
+
+    # -------- CRUD Operations ------- #
+
+    # For reading.
+    def get(self, request):
+
+        # Get all BCOs.
+        bco_objects = bco_object.objects.all()
+
+        # Serializer the response.
+        serializer = BcoGetSerializer(bco_objects, many=True)
+
+        return Response(serializer.data)
