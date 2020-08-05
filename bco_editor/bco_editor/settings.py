@@ -135,5 +135,6 @@ BCO_TAG = 'NIH'
 # Define valid regex for BCOs?
 BCO_REGEX = ''
 
-# Schema standards.
+# Schema/URI mappings.
+SCHEMA_URI_MAPPINGS = {'IEEE 2791-2020': 'https://opensource.ieee.org/2791-object/ieee-2791-schema/-/raw/master/2791object.json'}
 SCHEMA_27912020_LOCATION = 'https://opensource.ieee.org/2791-object/ieee-2791-schema/-/raw/master/2791object.json'

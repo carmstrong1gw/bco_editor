@@ -1,8 +1,10 @@
 # Based on the "Class Based API View" example at https://codeloop.org/django-rest-framework-course-for-beginners/
 
+# For instructions on calling class methods from other classes, see https://stackoverflow.com/questions/3856413/call-class-method-from-another-class
+
 # Create your views here.
 
-from .models import bco_object_ieee_2791_2020
+from .models import bco_object
 from .serializers import BcoPostSerializer, BcoGetSerializer, BcoPatchSerializer, BcoDeleteSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -20,17 +22,16 @@ import jsonref
 import jsonschema
 
 
-class BcoAPIView(APIView):
+# Description
+# -----------
+
+# Follow the basic CRUD (create, read, update, delete) paradigm.
+# A good description of each of these can be found at https://www.restapitutorial.com/lessons/httpmethods.html
 
 
-    # Description
-    # -----------
+# Helper definitions and functions for all classes.
 
-    # Follow the basic CRUD (create, read, update, delete) paradigm.
-    # A good description of each of these can be found at https://www.restapitutorial.com/lessons/httpmethods.html
-
-
-    # Helper definitions and functions
+class helper_functions:
 
     # Define regex for individual fields in a BCO.
     # ...
@@ -115,21 +116,22 @@ class BcoAPIView(APIView):
 
             # The payload is of a valid format, but does it have all
             # the required fields for a BCO?
-
+            print('Schema comp feature to come...')
+            '''
             # First, get the schema.
             schema = jsonref.load_uri(uri=settings.SCHEMA_27912020_LOCATION, jsonschema=True)
             print(schema)
-
+    
             # Now see if the validation is good.
-            '''
+            
             try:
-
+    
                 jsonschema.validate(json_payload, schema)
-
+    
             except:
-
+    
                 print('Schema template match failure.  This message will only show up in the terminal.')
-
+    
                 # Return the error.
                 return 'SCHEMA_MISMATCH_ERROR'
             '''
@@ -160,7 +162,7 @@ class BcoAPIView(APIView):
 
         # First, get all BCOs.  These objects are returned as JSON, so
         # we can work with them more easily.
-        bco_objects = BcoPostSerializer(bco_object_ieee_2791_2020.objects.all(), many=True).data
+        bco_objects = BcoPostSerializer(bco_object.objects.all(), many=True).data
 
         # Completely new object or just a new version?
         if version_flag is False:
@@ -260,20 +262,26 @@ class BcoAPIView(APIView):
         # Arguments
         # ---------
 
-        #  object_id_pass:  the ID that we are checking for existence.
+        #  object_id_pass:  the ID that we are trying to retrieve.
 
         try:
 
-            return bco_object_ieee_2791_2020.objects.get(object_id=object_id_pass)
+            return bco_object.objects.get(object_id=object_id_pass)
 
-        except bco_object_ieee_2791_2020.DoesNotExist:
+        except bco_object.DoesNotExist:
 
             return 'OBJECT_ID_DOES_NOT_EXIST'
 
 
+class BcoCreateObject(APIView):
 
-    # -------- CRUD Operations ------- #
 
+    # Description
+    # -----------
+
+    # This view only allows creating.
+
+    # -------- CRUD OPERATIONS ------- #
 
     # For creating.
     def post(self, request):
@@ -294,20 +302,23 @@ class BcoAPIView(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = self.check_object_id_format(object_id_pass=incoming_object_id)
+            object_id_format_check = helper_functions().check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
-                return Response('OBJECT_ID_FORMAT_ERROR.  Make sure the object ID matches the URI standard for your installation.  In particular, if you are creating a new object, make sure that object_id=\'New\' has no spaces.', status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    'OBJECT_ID_FORMAT_ERROR.  Make sure the object ID matches the URI standard for your installation.  In particular, if you are creating a new object, make sure that object_id=\'New\' has no spaces.',
+                    status=status.HTTP_400_BAD_REQUEST)
 
             # Make sure that the payload is of a valid format
             # and meets the requirements of the given schema.
             incoming_payload = request.data['payload']
-            payload_checks = self.check_payload_format_post(payload_pass=incoming_payload)
+            payload_checks = helper_functions().check_payload_format_post(payload_pass=incoming_payload)
 
             # Did we pass the tests?
             if payload_checks == 'JSON_CONVERSION_ERROR':
-                return Response('JSON_CONVERSION_ERROR.  Check your payload to ensure that it is a quoted JSON object.', status=status.HTTP_400_BAD_REQUEST)
+                return Response('JSON_CONVERSION_ERROR.  Check your payload to ensure that it is a quoted JSON object.',
+                                status=status.HTTP_400_BAD_REQUEST)
             elif payload_checks == 'SCHEMA_MISMATCH_ERROR':
                 return Response('SCHEMA_MISMATCH_ERROR.  The payload provided did not meet the required fields for the'
                                 ' schema at ' + settings.SCHEMA_27912020_LOCATION + '.',
@@ -316,38 +327,100 @@ class BcoAPIView(APIView):
             # The object ID and the payload are valid, so proceed to
             # generate a new ID and store the payload.
             if request.data['object_id'] == 'New':
-                new_object_id = self.generate_object_id()
+                new_object_id = helper_functions().generate_object_id()
             else:
-                new_object_id = self.generate_object_id(existing_id=incoming_object_id, version_flag=True)
+                new_object_id = helper_functions().generate_object_id(existing_id=incoming_object_id, version_flag=True)
 
             # Did we get a nice new ID or did someone try to
             # get a new version of something that already got
             # incrementally versioned?
             if new_object_id == 'VERSION_INCREMENT_ERROR':
-                return Response('VERSION_INCREMENT_ERROR.  Make sure you send the latest version of this BCO.', status=status.HTTP_409_CONFLICT)
+                return Response('VERSION_INCREMENT_ERROR.  Make sure you send the latest version of this BCO.',
+                                status=status.HTTP_409_CONFLICT)
 
             # Save the object ID and the payload.
             serializer.save(object_id=new_object_id)
 
             # Everything went properly in the request.
-            return Response('POSTed object with object_id \'' + incoming_object_id + '\' successfuly saved with object ID \'' + new_object_id + '\'.', status=status.HTTP_201_CREATED)
+            return Response(
+                'POSTed object with object_id \'' + incoming_object_id + '\' successfuly saved with object ID \'' + new_object_id + '\'.',
+                status=status.HTTP_201_CREATED)
 
         else:
 
             # Something went wrong in the request.
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-
     # For reading.
     def get(self, request):
 
-        bco_objects = bco_object_ieee_2791_2020.objects.all()
+        bco_objects = bco_object.objects.all()
 
         # Get one object or many?  Use the payload to determine
         # how many we get (can use a list of object IDs to retrieve).
-        serializer = BcoPostSerializer(bco_objects, many=True)
+        serializer = BcoGetSerializer(bco_objects, many=True)
+
+        return Response(serializer.data)
+
+
+class BcoViewAll(APIView):
+
+
+    # Description
+    # -----------
+
+    # This view only allows reading.
+
+
+    # -------- CRUD Operations ------- #
+
+    # For reading.
+    def get(self, request):
+        
+        bco_objects = bco_object.objects.all()
+
+        # Get one object or many?  Use the payload to determine
+        # how many we get (can use a list of object IDs to retrieve).
+        serializer = BcoGetSerializer(bco_objects, many=True)
+
+        return Response(serializer.data)
+
+
+
+
+class BcoViewObject(APIView):
+
+
+    # Description
+    # -----------
+
+    # This view only allows reading.
+
+
+    # -------- CRUD Operations ------- #
+
+
+    # For reading.
+    def get(self, request, object_id):
+
+        # Construct the 'true' object ID.
+        true_object_id = 'https://' + settings.BCO_ROOT + '/' + object_id
+
+        # Call the helper to get the object.
+        print('HERE')
+        print(true_object_id)
+        print('theRE')
+        bco_object = helper_functions().retrieve_object(object_id_pass=true_object_id)
+
+        # Did the object exist?
+        if bco_object == 'OBJECT_ID_DOES_NOT_EXIST':
+            return Response(
+                'OBJECT_ID_DOES_NOT_EXIST.  Make sure the object ID is an existing object.',
+                status=status.HTTP_404_NOT_FOUND)
+
+        # Get one object or many?  Use the payload to determine
+        # how many we get (can use a list of object IDs to retrieve).
+        serializer = BcoGetSerializer(bco_object, many=True)
 
         return Response(serializer.data)
 
@@ -378,7 +451,7 @@ class BcoAPIView(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = self.check_object_id_format(object_id_pass=incoming_object_id)
+            object_id_format_check = helper_functions.check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
@@ -388,7 +461,7 @@ class BcoAPIView(APIView):
 
             # The object ID is valid, so proceed to see if the object
             # is in the database.
-            retrieved_object = self.retrieve_object(incoming_object_id)
+            retrieved_object = helper_functions.retrieve_object(incoming_object_id)
 
             # Does the object exist?
             if retrieved_object == 'OBJECT_ID_DOES_NOT_EXIST':
@@ -406,5 +479,3 @@ class BcoAPIView(APIView):
 
             # Something went wrong in the request.
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-

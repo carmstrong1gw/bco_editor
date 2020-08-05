@@ -2,11 +2,18 @@ from django.db import models
 
 # Create your models here.
 
-# IEEE 2791-2020
-class bco_object_ieee_2791_2020(models.Model):
+# Generic BCO model.
+class bco_object(models.Model):
 
 	# The unique object ID.
+
+	# Field is required.
 	object_id = models.TextField()
+
+	# The schema under which the object falls.
+
+	# Field is required.
+	schema = models.TextField()
 
 	# The payload, essentially the entirety of the BCO.
 	# TextField is used here because it has no character limit.
