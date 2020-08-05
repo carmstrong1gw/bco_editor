@@ -12,5 +12,5 @@ class bco_object_ieee_2791_2020(models.Model):
 	# TextField is used here because it has no character limit.
 	payload = models.TextField()
 
-	def __str__(self):
-		return self.object_id
+	# The state of the object, is it a draft or is it commited?
+	state = models.TextField()

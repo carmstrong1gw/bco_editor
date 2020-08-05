@@ -29,7 +29,7 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
+#ALTERED
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -106,8 +106,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
+# ALTERED
+TIME_ZONE = 'EST'
 
 USE_I18N = True
 
@@ -123,8 +123,17 @@ STATIC_URL = '/static/'
 
 # USER-DEFINED VARIABLES
 
+# Valid prefixes for URIs.
+BCO_PREFIXES = ['https', 'ftp', 'doi', 'http']
+
 # The URI to use for the creation of new BCOs.
 BCO_ROOT = 'nih.gov'
 
 # The URI tag for the creation of new BCOs.
 BCO_TAG = 'NIH'
+
+# Define valid regex for BCOs?
+BCO_REGEX = ''
+
+# Schema standards.
+SCHEMA_27912020_LOCATION = 'https://opensource.ieee.org/2791-object/ieee-2791-schema/-/raw/master/2791object.json'
