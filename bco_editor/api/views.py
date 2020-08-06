@@ -242,7 +242,7 @@ class BcoDeleteObject(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = helper_functions.check_object_id_format(self, object_id_pass=incoming_object_id)
+            object_id_format_check = helper_functions.check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
@@ -252,7 +252,7 @@ class BcoDeleteObject(APIView):
 
             # The object ID is valid, so proceed to see if the object
             # is in the database.
-            retrieved_object = helper_functions.retrieve_object(self, incoming_object_id)
+            retrieved_object = helper_functions.retrieve_object(incoming_object_id)
 
             # Does the object exist?
             if retrieved_object == 'OBJECT_ID_DOES_NOT_EXIST':
