@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 
+# ALTERED
+# For setting schema files.
+import json
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -132,9 +136,59 @@ BCO_ROOT = 'nih.gov'
 # The URI tag for the creation of new BCOs.
 BCO_TAG = 'NIH'
 
-# Define valid regex for BCOs?
-BCO_REGEX = ''
-
 # Schema/URI mappings.
-SCHEMA_URI_MAPPINGS = {'IEEE 2791-2020': 'https://opensource.ieee.org/2791-object/ieee-2791-schema/-/raw/master/2791object.json'}
-SCHEMA_27912020_LOCATION = 'https://opensource.ieee.org/2791-object/ieee-2791-schema/-/raw/master/2791object.json'
+SCHEMA_URI_MAPPINGS = {'IEEE 2791-2020': 'https://w3id.org/ieee/ieee-2791-schema/2791object.json'}
+
+# USER-DEFINED SCHEMA
+
+# Define valid regexs for BCOs.
+BCO_REGEX = ['^' + prefix + '://' + BCO_ROOT + '/' + BCO_TAG + '_(\d+)_v_(\d+)$' for prefix in BCO_PREFIXES]
+BCO_REGEX.append('^NEW$')
+BCO_REGEX = '|'.join(BCO_REGEX)
+
+# Define valid regexs for schema.
+SCHEMA = []
+
+for schema, uri in SCHEMA_URI_MAPPINGS.items():
+    SCHEMA.append(schema)
+
+SCHEMA_REGEX = '|'.join(['^' + schema + '$' for schema in SCHEMA])
+
+# Create variables for accessing the schema from within other files.
+POST_REQUEST_SCHEMA = ''
+
+# Set the schema files so that we can define POST, GET, PATCH, and DELETE requests.
+for request_type in ['POST']:
+#for request_type in ['POST', 'GET', 'PATCH', 'DELETE']:
+
+    # Open the file for this request type.
+    with open('./api/request_definitions/' + request_type + '.schema', mode='r') as f:
+
+        # Create a variable to hold the JSON.
+        json_helper = json.load(f)
+
+        # Update the schema based on the request type.
+        if request_type == 'POST':
+
+            # Acceptable BCO patterns.
+            json_helper['items']['properties']['object_id']['pattern'] = BCO_REGEX
+
+            # Acceptable schema patterns.
+            json_helper['items']['properties']['schema']['pattern'] = SCHEMA_REGEX
+
+            # Set the schema.
+            POST_REQUEST_SCHEMA = json_helper
+
+        elif request_type == 'GET':
+            print('hi')
+        elif request_type == 'PATCH':
+            print('hi')
+        elif request_type == 'DELETE':
+            print('hi')
+
+    # Dump to the file with the updated values (optional).
+    with open('./api/request_definitions/' + request_type + '.schema', mode='w') as f:
+
+        # Dump.
+        json.dump(json_helper, f)
+

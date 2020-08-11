@@ -18,10 +18,10 @@ class bco_object(models.Model):
 	# Field is optional.
 	schema = models.TextField(blank=True, null=True)
 
-	# The payload, essentially the entirety of the BCO.
+	# The entirety of the BCO.
 
 	# Field is optional.
-	payload = models.TextField(blank=True, null=True)
+	bco = models.TextField(blank=True, null=True)
 
 	# The state of the object, is it a draft or is it committed?
 

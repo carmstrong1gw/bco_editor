@@ -11,7 +11,11 @@ from rest_framework.response import Response
 from rest_framework import status
 
 # For helper functions.
-from .scripts import helper_functions
+from .scripts import DbUtils, JsonUtils, RequestUtils, ResponseUtils
+
+# For loading schema.
+import json
+from django.conf import settings
 
 # For creating BCO IDs.
 from django.conf import settings
@@ -24,23 +28,6 @@ from django.conf import settings
 
 # Follow the basic CRUD (create, read, update, delete) paradigm.
 # A good description of each of these can be found at https://www.restapitutorial.com/lessons/httpmethods.html
-
-
-# DEBUG view.
-class DEBUG(APIView):
-
-    # Just calls other normal views.
-    def post(self, request):
-        return BcoPostObject.as_view()(request=request)
-
-    def get(self, request):
-        return BcoGetObject.as_view()(request=request)
-
-    def patch(self, request):
-        return BcoPatchObject.as_view()(request=request)
-
-    def delete(self, request):
-        return BcoDeleteObject.as_view()(request=request)
 
 
 
@@ -59,10 +46,23 @@ class BcoPostObject(APIView):
     def post(self, request):
 
         # Serialize the request.
-        serializer = BcoPostSerializer(data=request.data)
+        serializer = BcoPostSerializer(data=request.data, many=True)
 
-        # Did the request pass validation?
+        # Did the request pass serial validation?
         if serializer.is_valid():
+
+            # Establish the data.
+            request_data = request.data
+
+            # The serialization is valid, so now we need to check the
+            # request against schema.
+            request_validity_check = JsonUtils.JsonUtils().check_object_against_schema(object_pass=request_data, schema_pass=settings.POST_REQUEST_SCHEMA)
+
+            # Did the check pass?
+            if request_validity_check is not None:
+                return Response('Schema check failure, see output below...\n\n' + request_validity_check, status=status.HTTP_400_BAD_REQUEST)
+
+            print(x)
 
             # The serialization is valid, so now we need to generate
             # a unique object ID.
@@ -74,7 +74,7 @@ class BcoPostObject(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = helper_functions.check_object_id_format(object_id_pass=incoming_object_id)
+            object_id_format_check = RequestUtils().check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
@@ -83,14 +83,14 @@ class BcoPostObject(APIView):
                     status=status.HTTP_400_BAD_REQUEST)
 
             # Define keys that must come with the request.
-            keys_exist_check = helper_functions.check_key_set_exists(data_pass=request.data, key_set=['payload', 'schema', 'state'])
+            keys_exist_check = JsonUtils().check_key_set_exists(data_pass=request.data, key_set=['payload', 'schema', 'state'])
 
             # Were all the keys there?
             if keys_exist_check is not None:
                 return Response(keys_exist_check['error'] + '.  The required key \'' + keys_exist_check['associated_key'] + '\' was not provided with your POST request.', status=status.HTTP_400_BAD_REQUEST)
 
             # Make sure that the payload is JSON.
-            json_exists_check = helper_functions.check_json_exists(data_pass=request.data, key_set=['payload'])
+            json_exists_check = JsonUtils().check_json_exists(data_pass=request.data, key_set=['payload'])
 
             # Was the payload JSON?
             if json_exists_check is not None:
@@ -120,9 +120,9 @@ class BcoPostObject(APIView):
             # The object ID and the payload are valid, so proceed to
             # generate a new ID and store the payload.
             if request.data['object_id'] == 'New':
-                new_object_id = helper_functions.generate_object_id()
+                new_object_id = DbUtils().generate_object_id()
             else:
-                new_object_id = helper_functions.generate_object_id(existing_id=incoming_object_id, version_flag=True)
+                new_object_id = DbUtils().generate_object_id(existing_id=incoming_object_id, version_flag=True)
 
             # Did we get a nice new ID or did someone try to
             # get a new version of something that already got
@@ -173,24 +173,37 @@ class BcoGetObject(APIView):
     # For reading.
     def get(self, request, object_id):
 
+        # Arguments
+        # ---------
+
+        # object_id:  the ID we are trying to retrieve.
+
+        # Retrieve all objects if and only if the object_id is ALL.
+        if object_id == 'ALL':
+
+            # Get all BCOs.
+            bco_objects = bco_object.objects.all()
+
+            # Serializer the response.
+            serializer = BcoGetSerializer(bco_objects, many=True)
+
+            return Response(serializer.data)
+
         # Construct the 'true' object ID.
         true_object_id = 'https://' + settings.BCO_ROOT + '/' + object_id
 
         # Call the helper to get the object.
-        print('HERE')
-        print(true_object_id)
-        print('theRE')
-        bco_object = helper_functions.retrieve_object(object_id_pass=true_object_id)
+        bco_object_helper = DbUtils().retrieve_object(object_id_pass=true_object_id)
 
         # Did the object exist?
-        if bco_object == 'OBJECT_ID_DOES_NOT_EXIST':
+        if bco_object_helper == 'OBJECT_ID_DOES_NOT_EXIST':
             return Response(
                 'OBJECT_ID_DOES_NOT_EXIST.  Make sure the object ID is an existing object.',
                 status=status.HTTP_404_NOT_FOUND)
 
         # Get one object or many?  Use the payload to determine
         # how many we get (can use a list of object IDs to retrieve).
-        serializer = BcoGetSerializer(bco_object)
+        serializer = BcoGetSerializer(bco_object_helper)
 
         return Response(serializer.data)
 
@@ -211,8 +224,16 @@ class BcoPatchObject(APIView):
 
     # For patching (updating).
     def patch(self, request):
-        print('hi')
 
+        # Serialize the request.
+        serializer = BcoPatchSerializer(data=request.data)
+
+        # Did the request pass validation?
+        if serializer.is_valid():
+
+            # The serialization is valid, so now we need to check
+            # that a valid object ID was sent.
+            print('hi')
 
 
 
@@ -242,7 +263,7 @@ class BcoDeleteObject(APIView):
             incoming_object_id = request.data['object_id']
 
             # Make sure that the object ID is of a valid format.
-            object_id_format_check = helper_functions.check_object_id_format(object_id_pass=incoming_object_id)
+            object_id_format_check = RequestUtils().check_object_id_format(object_id_pass=incoming_object_id)
 
             # Did we pass the format test?
             if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
@@ -252,7 +273,7 @@ class BcoDeleteObject(APIView):
 
             # The object ID is valid, so proceed to see if the object
             # is in the database.
-            retrieved_object = helper_functions.retrieve_object(incoming_object_id)
+            retrieved_object = DbUtils().retrieve_object(incoming_object_id)
 
             # Does the object exist?
             if retrieved_object == 'OBJECT_ID_DOES_NOT_EXIST':
