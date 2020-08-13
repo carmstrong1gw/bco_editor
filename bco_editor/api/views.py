@@ -45,6 +45,13 @@ class BcoPostObject(APIView):
     # For creating.
     def post(self, request):
 
+        #print('REQUEST DATA')
+        #print(request.data)
+        #print(type(request.data))
+        #print(request.data[0]['bco'])
+        #print(type(request.data[0]))
+        #print('REQUEST DATA END')
+
         # Serialize the request.
         serializer = BcoPostSerializer(data=request.data, many=True)
 
