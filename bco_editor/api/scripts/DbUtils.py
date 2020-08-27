@@ -1,6 +1,10 @@
 # For creating BCO IDs.
 from django.conf import settings
 
+# For retrieving objects.
+from ..models import bco_object
+from ..serializers import BcoGetSerializer
+
 class DbUtils:
 
     # Class Description
@@ -24,8 +28,11 @@ class DbUtils:
 
         # First, get all BCOs.  These objects are returned as JSON, so
         # we can work with them more easily.
-        bco_objects = BcoGeneralSerializer(bco_object.objects.all(), many=True).data
+        bco_objects = BcoGetSerializer(bco_object.objects.all(), many=True).data
 
+        print('HERE')
+        print(bco_objects)
+        print('THERE')
         # Completely new object or just a new version?
         if version_flag is False:
 
@@ -39,11 +46,9 @@ class DbUtils:
 
                 # Now go through each object and get its ID.
                 for current_object in bco_objects:
+
                     # Extract and append the object ID.
                     bco_object_ids.append(current_object['object_id'])
-
-                # Define a variable to hold our new object number.
-                new_object_number = 0
 
                 # Define a variable to keep track of the maximum
                 # number found so far as we go through the object IDs.

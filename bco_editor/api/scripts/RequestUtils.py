@@ -51,7 +51,7 @@ class RequestUtils:
 
 
     # Check for a valid object ID.
-    def check_object_id_format(object_id_pass):
+    def check_object_id_format(self, object_id_pass):
 
         # Arguments
         # ---------
@@ -59,14 +59,14 @@ class RequestUtils:
         # object_id_pass:  the ID that we are checking for validity.
 
         # There are only two valid formats for an object ID,
-        # 'New' or a URI of the form acronym://part/part/part/acronym_integer_v_integer
+        # 'NEW' or a URI of the form acronym://part/part/part/acronym_integer_v_integer
         # We can check for both of these using regex.
 
         # Create a flag to indicate failure of format.
         format_failure = True
 
         # Try the easy one first.
-        if object_id_pass != 'New':
+        if object_id_pass != 'NEW':
 
             # Check the URI regex.
             # Source:  https://stackoverflow.com/questions/12595051/check-if-string-matches-pattern

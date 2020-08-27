@@ -58,6 +58,8 @@ class BcoPostObject(APIView):
         # Did the request pass serial validation?
         if serializer.is_valid():
 
+            # The serialization was valid, so now check against schema.
+
             # Establish the data.
             request_data = request.data
 
@@ -69,54 +71,6 @@ class BcoPostObject(APIView):
             if request_validity_check is not None:
                 return Response('Schema check failure, see output below...\n\n' + request_validity_check, status=status.HTTP_400_BAD_REQUEST)
 
-            print(x)
-
-            # The serialization is valid, so now we need to generate
-            # a unique object ID.
-            # Source:  https://stackoverflow.com/questions/36783122/django-rest-framework-perform-create-you-cannot-call-save-after-accessing
-            # Another possible solution:  https://stackoverflow.com/questions/22210046/django-form-what-is-the-best-way-to-modify-posted-data-before-validating
-
-            # Get a new object ID based on whether or not the
-            # incoming data asks for a new ID or a new version.
-            incoming_object_id = request.data['object_id']
-
-            # Make sure that the object ID is of a valid format.
-            object_id_format_check = RequestUtils().check_object_id_format(object_id_pass=incoming_object_id)
-
-            # Did we pass the format test?
-            if object_id_format_check == 'OBJECT_ID_FORMAT_ERROR':
-                return Response(
-                    'OBJECT_ID_FORMAT_ERROR.  Make sure the object ID matches the URI standard for your installation.  In particular, if you are creating a new object, make sure that object_id=\'New\' has no spaces.',
-                    status=status.HTTP_400_BAD_REQUEST)
-
-            # Define keys that must come with the request.
-            keys_exist_check = JsonUtils().check_key_set_exists(data_pass=request.data, key_set=['payload', 'schema', 'state'])
-
-            # Were all the keys there?
-            if keys_exist_check is not None:
-                return Response(keys_exist_check['error'] + '.  The required key \'' + keys_exist_check['associated_key'] + '\' was not provided with your POST request.', status=status.HTTP_400_BAD_REQUEST)
-
-            # Make sure that the payload is JSON.
-            json_exists_check = JsonUtils().check_json_exists(data_pass=request.data, key_set=['payload'])
-
-            # Was the payload JSON?
-            if json_exists_check is not None:
-                return Response(json_exists_check['error'] + '.  The data for key \'' + json_exists_check['associated_key'] + '\' was not sent in JSON format.', status=status.HTTP_400_BAD_REQUEST)
-
-            # Make sure that the payload meets the schema provided.
-            '''
-            incoming_payload = request.data['payload']
-            payload_checks = helper_functions.check_payload_format_post(payload_pass=incoming_payload)
-
-            elif payload_checks == 'SCHEMA_MISMATCH_ERROR':
-                return Response('SCHEMA_MISMATCH_ERROR.  The payload provided did not meet the required fields for the'
-                                ' schema at ' + settings.SCHEMA_27912020_LOCATION + '.',
-                                status=status.HTTP_400_BAD_REQUEST)
-            '''
-
-            # Make sure that the state is valid.
-            if (request.data['state'] != 'draft') and (request.data['state'] != 'published'):
-                return Response('STATE_ERROR.  The state value can be either one of \'draft\' or \'published\'.', status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -124,22 +78,35 @@ class BcoPostObject(APIView):
 
 
 
-            # The object ID and the payload are valid, so proceed to
-            # generate a new ID and store the payload.
-            if request.data['object_id'] == 'New':
-                new_object_id = DbUtils().generate_object_id()
-            else:
-                new_object_id = DbUtils().generate_object_id(existing_id=incoming_object_id, version_flag=True)
 
-            # Did we get a nice new ID or did someone try to
-            # get a new version of something that already got
-            # incrementally versioned?
-            if new_object_id == 'VERSION_INCREMENT_ERROR':
-                return Response('VERSION_INCREMENT_ERROR.  Make sure you send the latest version of this BCO.',
-                                status=status.HTTP_409_CONFLICT)
+            # The serialization and the JSON were valid, so now we need to generate
+            # a unique object ID for each POSTed object.
+            # Source:  https://stackoverflow.com/questions/36783122/django-rest-framework-perform-create-you-cannot-call-save-after-accessing
+            # Another possible solution:  https://stackoverflow.com/questions/22210046/django-form-what-is-the-best-way-to-modify-posted-data-before-validating
 
-            # Save the object ID and the payload.
-            serializer.save(object_id=new_object_id)
+            # Go over each POSTed object.
+            for current_post_object in request_data:
+
+                # Get a new object ID based on whether or not the
+                # incoming data asks for a new ID or a new version.
+                incoming_object_id = current_post_object['object_id']
+
+                # The object ID and the payload are valid, so proceed to
+                # generate a new ID and store the payload.
+                if current_post_object['object_id'] == 'NEW':
+                    new_object_id = DbUtils.DbUtils().generate_object_id()
+                else:
+                    new_object_id = DbUtils.DbUtils().generate_object_id(existing_id=incoming_object_id, version_flag=True)
+
+                # Did we get a nice new ID or did someone try to
+                # get a new version of something that already got
+                # incrementally versioned?
+                if new_object_id == 'VERSION_INCREMENT_ERROR':
+                    return Response('VERSION_INCREMENT_ERROR.  Make sure you send the latest version of this BCO.',
+                                    status=status.HTTP_409_CONFLICT)
+
+                # Save the object ID and the payload.
+                serializer.save(object_id=new_object_id)
 
             # Everything went properly in the request.
             return Response(

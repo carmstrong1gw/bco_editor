@@ -156,6 +156,9 @@ SCHEMA_REGEX = '|'.join(['^' + schema + '$' for schema in SCHEMA])
 
 # Create variables for accessing the schema from within other files.
 POST_REQUEST_SCHEMA = ''
+GET_REQUEST_SCHEMA = ''
+PATCH_REQUEST_SCHEMA = ''
+DELETE_REQUEST_SCHEMA = ''
 
 # Set the schema files so that we can define POST, GET, PATCH, and DELETE requests.
 for request_type in ['POST']:
